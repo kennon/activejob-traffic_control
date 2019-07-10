@@ -6,14 +6,15 @@ module ActiveJob
       extend ::ActiveSupport::Concern
 
       class_methods do
-        def throttle(threshold:, period:, drop: false, key: nil)
+        def throttle(threshold:, period:, drop: false, key: nil, lock_options: {})
           raise ArgumentError, "Threshold needs to be an integer > 0" if threshold.to_i < 1
 
           self.job_throttling = {
             threshold: threshold,
             period: period,
             drop: drop,
-            key: key
+            key: key,
+            lock_options: lock_options
           }
         end
 
@@ -32,7 +33,7 @@ module ActiveJob
             lock_options = {
               resources: self.class.job_throttling[:threshold],
               stale_lock_expiration: self.class.job_throttling[:period]
-            }
+            }.merge(self.class.job_throttling[:lock_options])
 
             with_lock_client(self.class.throttling_lock_key(job), lock_options) do |client|
               token = client.lock
